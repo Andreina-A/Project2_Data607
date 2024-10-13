@@ -1,0 +1,185 @@
+---
+title: "Project 2 607"
+author: "Andreina A"
+date: "2024-10-13"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Project 2
+To choose three data sets that are untidy, read it as a CSV file, tidy and transform that data. 
+
+Loaded needed packages
+```{r}
+library(tidyverse)
+library(readr)
+```
+
+##Data set 1
+
+In the first data set, the data is about the alcohol consumption in 2010 for different countries. The alcohols are seperated into beers, spirit, and wine. To make the data set tidy I will create a column for the types of alcohols servings and another column with the amount of servings to replace 'beer_servings', 'spirit_servings', 'wine_servings'.
+
+Article: https://fivethirtyeight.com/features/dear-mona-followup-where-do-people-drink-the-most-beer-wine-and-spirits/
+
+Data: https://github.com/fivethirtyeight/data/tree/master/alcohol-consumption
+```{r echo=FALSE}
+DF1<-read.csv('https://raw.githubusercontent.com/fivethirtyeight/data/refs/heads/master/alcohol-consumption/drinks.csv')
+head(DF1)
+```
+
+Adding primary keys with the country names.
+```{r}
+DF1 <- tibble::rowid_to_column(DF1, "ID")
+head(DF1)
+```
+
+
+
+Tidying: Made the date set into a data frame and used the pivot longer function to make the data longer and replace the columns 'beer_servings', 'spirit_servings', 'wine_servings', and 'total_litres_of_pure_alcohol' with 'alcohol_type_of_serving' and 'serving_amount'.
+```{r echo=FALSE}
+DF1<-data.frame(DF1%>%
+  pivot_longer(c(beer_servings, spirit_servings, wine_servings,total_litres_of_pure_alcohol), names_to = 'alcohol_type_of_serving', values_to = 'serving_amount'))
+head(DF1)
+```
+
+#Make data frame as CSV file and test
+
+```{r}
+write_csv(DF1,file="Alcohol_within_countries.csv")
+Test1<-read_csv("Alcohol_within_countries.csv", show_col_types = FALSE)
+head(Test1)
+```
+
+
+Now that the data is tidy and transformed, I will perform my analysis to find the country that has the highest alcohol servings consumed. I transformed the data by sorting the serving amounts by descending order.
+```{r}
+DF1_max<-DF1[order(DF1$serving_amount, decreasing= TRUE),]
+head(DF1_max)
+```
+```{r}
+DF1_max<-filter(DF1_max,serving_amount>=347)#tranformed the data using filter to only display data for serving amount that are greater than or equal to 347.
+ggplot(DF1_max, aes(x=country, y=serving_amount, fill=alcohol_type_of_serving)) +
+  geom_col(position="dodge")
+```
+
+**In conclusion I was able to tidy and transform the data on alcohol consumption from different countries and I was able to get that Grenada has the highest alcohol serving consumption, and it's mainly in teh type of spirit.**
+
+##Data set 2
+
+I will work with the data set is on the death causes in New York since 2017. The data set has two columns for different death rates which can be combined to be a death rate type and their values as rates.
+
+Data from:https://data.cityofnewyork.us/Health/New-York-City-Leading-Causes-of-Death/jb7j-dtam/data_preview
+```{r echo=FALSE}
+DF2<-read.csv('https://raw.githubusercontent.com/Andreina-A/Project2_Data607/refs/heads/main/New_York_City_Leading_Causes_of_Death_20241013.csv', na.strings=" ")# na.string will convert all empty data into '.'
+head(DF2)
+```
+
+Rename:Transform data by rename columns, order to use them in R. By replaceing th '.' with underscores.
+```{r}
+DF2<-DF2%>%rename("Leading_cause"=Leading.Cause, "Death_rate"=Death.Rate,"Age_adjusted_death_rate"=Age.Adjusted.Death.Rate, "Race_Ethnicity"=Race.Ethnicity)
+
+head(DF2)
+```
+
+Reorganize that columns to have the leading cause first for the primary keys. 
+```{r}
+DF2<-DF2[,c(2,1,3,4,5,6,7)]
+head(DF2)
+```
+
+Create primary keys
+```{r}
+DF2 <- tibble::rowid_to_column(DF2, "ID")
+head(DF2)             
+```
+```{r}
+DF2[DF2 == '.'] <- NA#Will turn all '.' in NA
+```
+
+Tidy: 
+```{r}
+DF2<-data.frame(DF2%>%
+  pivot_longer(c(Death_rate, Age_adjusted_death_rate), names_to = 'Death_rate_type', values_to = 'rate',values_drop_na = TRUE))# values_drop_na turns the missing values implicit when TRUE.
+head(DF2)
+```
+
+
+
+Making rates and deaths numeric in order to us in further calculations.
+```{r}
+DF2$rate<-as.numeric(DF2$rate)
+DF2$Deaths<-as.numeric(DF2$Deaths)
+```
+
+
+Visualization of the death rate distribution, which seems skewed to the right.
+```{r}
+ggplot(DF2, aes(rate)) +
+  geom_histogram(width = 30)
+```
+
+Turned the data frame into a CSV file.
+```{r}
+write_csv(DF2,file="Death_in_NY.csv")
+Death_NY <- read_csv("Death_in_NY.csv", show_col_types = FALSE)
+head(Death_NY)
+```
+
+Now that we have the data tidy, I will analyze how the mean of the death rate to see what is the average of the death rates in NY. I will use the summarise function to transform the data.
+
+```{r tranform_average_rate}
+DF2_Mean<-DF2%>%
+  summarise(Mean=mean(rate, na.rm = TRUE))#na.rm set at true to remove missing values to not including into the calculations
+DF2_Mean
+```
+```{r}
+DF2[8,]#selecting row for heart disease in hispanic females
+```
+
+
+In conclusion I was able to determine the average of death rate in NY, which is 54.93273. Comparing the rate of age adjusted death rat for heart disease in femal hispanic in 2018, the death rate is well above the average death rate. 
+
+##Data set 3 
+
+Is a data set on airline and their crashes, which was used for an article to discuss which airlines people should avoid based on their crashes. For this data set there were many columns for diferent types of crashes to tidy up the data a little I combined the crash types into one column and had their values in a seperate column as the crash counts.
+
+
+Article:https://fivethirtyeight.com/features/should-travelers-avoid-flying-airlines-that-have-had-crashes-in-the-past/
+
+Data: https://github.com/fivethirtyeight/data/tree/master/airline-safety
+```{r echo=FALSE}
+DF3<-read.csv('https://raw.githubusercontent.com/fivethirtyeight/data/refs/heads/master/airline-safety/airline-safety.csv')
+head(DF3)
+```
+
+Adding primary keys with the country names.
+```{r}
+DF3 <- tibble::rowid_to_column(DF3, "ID")
+head(DF3)
+```
+
+
+Tidying: Made the date set into a data frame and used the pivot longer function to make the data longer and replace the columns 'incidents_85_99', 'fatal_accidents_85_99', 'fatalities_85_99', 'incidents_00_1', 'fatal_accidents_00_14', and 'fatalities_00_14' with 'crash_type_with_yr_frames' and the values to  'crash_count'.
+```{r echo=FALSE}
+DF3<-data.frame(DF3%>%
+  pivot_longer(c(incidents_85_99, fatal_accidents_85_99, fatalities_85_99, incidents_00_14, fatal_accidents_00_14, fatalities_00_14), names_to = 'crash_type_with_yr_frames', values_to = 'crash_count'))
+head(DF3)
+```
+
+Turned the data frame into a CSV file.
+```{r}
+write_csv(DF3,file="airline_crashes.csv")
+airline_crashes <- read_csv("airline_crashes.csv", show_col_types = FALSE)
+head(airline_crashes)
+```
+
+Analysis: Lets see how which ariline had the highest crash count, in which we should avoid.
+```{r tranform_sort_descending}
+DF3_max<-DF3[order(DF3$crash_count, decreasing= TRUE),]
+head(DF3_max)
+```
+
+Malaysia airline seems to be the airline to avoid as it has the highest count of crashs with a count of 537 crashes. Well lets not forget on March 8,2014 flight 370 from Malaysia airline had disappeared and was never found.
